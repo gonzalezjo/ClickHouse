@@ -93,7 +93,7 @@ public:
     {
         try
         {
-            checkTimeoutImpl();
+            return checkTimeoutImpl();
         }
         catch (DB::Exception & e)
         {
