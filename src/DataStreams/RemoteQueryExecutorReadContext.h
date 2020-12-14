@@ -24,7 +24,6 @@ public:
 
     std::exception_ptr exception;
     FiberStack<> stack;
-    std::mutex fiber_mutex;
     boost::context::fiber fiber;
 
     Poco::Timespan receive_timeout;
@@ -148,13 +147,13 @@ public:
             timer.setRelative(receive_timeout);
     }
 
-    bool resumeRoutine()
+    bool resumeRoutine(std::mutex & mutex)
     {
         if (is_read_in_progress && !checkTimeout())
             return false;
 
         {
-            std::lock_guard guard(fiber_mutex);
+            std::lock_guard guard(mutex);
             if (!fiber)
                 return false;
 
@@ -181,9 +180,9 @@ public:
         return true;
     }
 
-    void cancel()
+    void cancel(std::mutex & mutex)
     {
-        std::lock_guard guard(fiber_mutex);
+        std::lock_guard guard(mutex);
         boost::context::fiber to_destroy = std::move(fiber);
 
         uint64_t buf = 0;
@@ -218,7 +217,7 @@ public:
                     connections.setFiber(&sink);
 
                     read_context.is_read_in_progress = true;
-                    read_context.packet = connections.receivePacket();
+                    read_context.packet = connections.receivePacketUnlocked();
                     read_context.is_read_in_progress = false;
 
                     sink = std::move(sink).resume();
